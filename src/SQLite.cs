@@ -146,9 +146,9 @@ namespace SQLite
 
 			DatabasePath = databasePath;
 
-#if NETFX_CORE
-			SQLite3.SetDirectory(/*temp directory type*/2, Windows.Storage.ApplicationData.Current.TemporaryFolder.Path);
-#endif
+//#if NETFX_CORE
+//            SQLite3.SetDirectory(/*temp directory type*/2, Windows.Storage.ApplicationData.Current.TemporaryFolder.Path);
+//#endif
 
 			Sqlite3DatabaseHandle handle;
 
@@ -1621,7 +1621,7 @@ namespace SQLite
 
 		public Column FindColumn (string columnName)
 		{
-			var exact = Columns.FirstOrDefault (c => c.Name == columnName);
+            var exact = Columns.FirstOrDefault(c => c.Name.Equals(columnName, StringComparison.CurrentCultureIgnoreCase));
 			return exact;
 		}
 		
@@ -1783,24 +1783,33 @@ namespace SQLite
 			} else if (clrType == typeof(String)) {
 				int len = p.MaxStringLength;
 				return "varchar(" + len + ")";
-			} else if (clrType == typeof(DateTime)) {
-				return storeDateTimeAsTicks ? "bigint" : "datetime";
             } else if (clrType == typeof(DateTimeOffset))
+            {
+                return storeDateTimeAsTicks ? "bigint" : "datetime";
+            } else if (clrType == typeof(DateTime))
             {
                 return storeDateTimeAsTicks ? "bigint" : "datetime";
 #if !NETFX_CORE
 			} else if (clrType.IsEnum) {
 #else
-			} else if (clrType.GetTypeInfo().IsEnum) {
+            }
+            else if (clrType.GetTypeInfo().IsEnum)
+            {
 #endif
-				return "integer";
-			} else if (clrType == typeof(byte[])) {
-				return "blob";
-            } else if (clrType == typeof(Guid)) {
+                return "integer";
+            }
+            else if (clrType == typeof(byte[]))
+            {
+                return "blob";
+            }
+            else if (clrType == typeof(Guid))
+            {
                 return "varchar(36)";
-            } else {
-				throw new NotSupportedException ("Don't know about " + clrType);
-			}
+            }
+            else
+            {
+                throw new NotSupportedException("Don't know about " + clrType);
+            }
 		}
 
 		public static bool IsPK (MemberInfo p)
@@ -2068,13 +2077,14 @@ namespace SQLite
                 {
                     if (storeDateTimeAsTicks)
                     {
-                        SQLite3.BindInt64(stmt, index, ((DateTime)value).Ticks);
+                        SQLite3.BindInt64(stmt, index, ((DateTimeOffset)value).Ticks);
                     }
                     else
                     {
-                        SQLite3.BindText(stmt, index, ((DateTimeOffset)value).DateTime.ToString("yyyy-MM-dd HH:mm:ss"), -1, NegativePointer);
+                        SQLite3.BindText(stmt, index, ((DateTimeOffset)value).Ticks.ToString(), -1, NegativePointer);
                     }
-                } else if (value is DateTime) {
+                } else if (value is DateTime)
+                {
 					if (storeDateTimeAsTicks) {
 						SQLite3.BindInt64 (stmt, index, ((DateTime)value).Ticks);
 					}
@@ -2125,12 +2135,12 @@ namespace SQLite
                 {
                     if (_conn.StoreDateTimeAsTicks)
                     {
-                        return new DateTimeOffset(SQLite3.ColumnInt64(stmt, index), TimeSpan.Zero);
+                        return new DateTimeOffset(SQLite3.ColumnInt64(stmt, index), DateTimeOffset.Now.Offset);
                     }
                     else
                     {
                         var text = SQLite3.ColumnString(stmt, index);
-                        return DateTimeOffset.Parse(text);
+                        return new DateTimeOffset(long.Parse(text), DateTimeOffset.Now.Offset);
                     }
                 } else if (clrType == typeof(DateTime))
                 {
